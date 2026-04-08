@@ -9,9 +9,11 @@ terraform {
   }
 
   backend "s3" {
-    bucket = "kplabs-terraform-backends"
+    bucket = "terraform-backends-471112801232-us-east-1-an"
     key    = "remote/demo.tfstate"
     region = "us-east-1"
+    use_lockfile = true
+    encrypt = true
   }
 }
 
