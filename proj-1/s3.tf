@@ -4,6 +4,7 @@ resource "random_id" "suffix" {
 
 resource "aws_s3_bucket" "frontend" {
   bucket = "my-app-frontend-${random_id.suffix.hex}"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_website_configuration" "frontend" {

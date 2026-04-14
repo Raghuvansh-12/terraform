@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Serverless App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      text-align: center;
+      background: #1e293b;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+      width: 350px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    #output {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #22c55e;
+    }
+
+    .loading {
+      color: #facc15;
+    }
+
+    .error {
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Serverless App</h1>
+    <button onclick="callAPI()">Check Backend</button>
+    <p id="output"></p>
+  </div>
+
+  <script>
+    async function callAPI() {
+      const output = document.getElementById("output");
+      output.className = "loading";
+      output.innerText = "Calling backend...";
+
+      try {
+        const res = await fetch("https://52qa0eskg4.execute-api.ap-south-1.amazonaws.com");
+        const text = await res.text();
+
+        output.className = "";
+        output.innerText = text;
+      } catch (err) {
+        output.className = "error";
+        output.innerText = "Error calling API";
+      }
+    }
+  </script>
+</body>
+</html>
