@@ -27,17 +27,32 @@ resource "aws_subnet" "app_private" {
   availability_zone = var.azs[count.index]
 }
 
+data "aws_ami" "ubuntu" {
+	most_recent = true
+	owners      = ["099720109477"]
+
+	filter {
+		name   = "name"
+		values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+	}
+
+	filter {
+		name   = "virtualization-type"
+		values = ["hvm"]
+	}
+}
+
 
 resource "aws_launch_template" "app" {
   name_prefix   = "app-template"
-  image_id      = "var.launch_template_ami"
+  image_id      = data.aws_ami.ubuntu.id
   instance_type = "t3.micro"
 
   user_data = base64encode(file("userdata.sh"))
 
-  iam_instance_profile {
-    name = aws_iam_role.ec2.name
-  }
+#   iam_instance_profile {
+#     name = aws_iam_role.ec2.name
+#   }
 }
 
 module "asg" {
@@ -51,7 +66,7 @@ module "asg" {
   max_size            = 4
   desired_capacity    = 2
 
-  target_group_arns   = [aws_lb_target_group.tg.arn]
+  # target_group_arns   = [aws_lb_target_group.tg.arn]
 
   # optional
   azs = var.azs
