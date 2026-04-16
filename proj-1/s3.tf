@@ -1,9 +1,9 @@
-resource "random_id" "suffix" {
-  byte_length = 8
-}
+# resource "random_id" "suffix" {
+#   byte_length = 8
+# }
 
 resource "aws_s3_bucket" "frontend" {
-  bucket = "my-app-frontend-${random_id.suffix.hex}"
+  bucket        = var.domain_name
   force_destroy = true
 }
 
@@ -25,10 +25,10 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 }
 
 resource "aws_s3_bucket_policy" "frontend" {
-  bucket     = aws_s3_bucket.frontend.id
-  
+  bucket = aws_s3_bucket.frontend.id
+
   depends_on = [aws_s3_bucket_public_access_block.frontend]
-  
+
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{

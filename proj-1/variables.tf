@@ -1,17 +1,21 @@
 variable "function_name" {
-  type = string
+  type    = string
   default = "app_lambda"
 }
 
 variable "lambda_zip" {
-  type = string
+  type    = string
   default = "./fn/lambda.zip"
 }
 
 variable "runtime" {
-    default = "python3.12"
+  default = "python3.12"
 }
 
 variable "handler" {
-    default = "fn.handler"
+  default = "fn.handler"
+}
+
+variable "domain_name" {
+  default = "raghuvansh.online"
 }
