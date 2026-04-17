@@ -1,7 +1,7 @@
 resource "local_file" "index" {
   depends_on = [aws_apigatewayv2_api.api]
   content = templatefile("${path.module}/index.html.tpl", {
-    api_url = aws_apigatewayv2_api.api.api_endpoint
+    api_url = "https://${aws_route53_record.api.name}"
   })
 
   filename = "${path.module}/build/index.html"
@@ -13,6 +13,10 @@ resource "aws_s3_object" "index" {
   source       = local_file.index.filename
   content_type = "text/html"
 
-  depends_on = [aws_apigatewayv2_api.api]
+  depends_on = [aws_route53_record.api]
+  lifecycle {
+    replace_triggered_by = [local_file.index]
+  }
 
 }
+
