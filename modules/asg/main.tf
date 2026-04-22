@@ -17,10 +17,9 @@ resource "aws_autoscaling_group" "this" {
     id      = var.launch_template_id
     version = "$Latest"
   }
-
   target_group_arns = var.target_group_arns
 
-  health_check_type         = "EC2"
+  health_check_type         = var.health_check_type
   health_check_grace_period = 300
 
   tag {

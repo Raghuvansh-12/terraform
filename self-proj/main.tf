@@ -14,10 +14,30 @@ resource "aws_subnet" "bastion_public" {
   availability_zone = var.azs[0]
 }
 
-resource "aws_subnet" "app_public" {
+
+# Subnets in different Availability Zones
+resource "aws_subnet" "public_subnet_1" {
   vpc_id            = aws_vpc.app.id
-  cidr_block        = "172.32.1.0/24"
-  availability_zone = var.azs[0]
+  cidr_block        = "172.32.10.0/24"
+  availability_zone = "ap-south-1a"
+
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "public-subnet-1a"
+  }
+}
+
+resource "aws_subnet" "public_subnet_2" {
+  vpc_id            = aws_vpc.app.id
+  cidr_block        = "172.32.11.0/24"
+  availability_zone = "ap-south-1b"
+
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "public-subnet-2b"
+  }
 }
 
 resource "aws_subnet" "app_private" {
@@ -27,47 +47,178 @@ resource "aws_subnet" "app_private" {
   availability_zone = var.azs[count.index]
 }
 
+
+# Internet Gateway
+resource "aws_internet_gateway" "igw" {
+  vpc_id = aws_vpc.app.id
+
+  tags = {
+    Name = "main-igw"
+  }
+}
+
+# Public Route Table
+resource "aws_route_table" "public_rt" {
+  vpc_id = aws_vpc.app.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
+
+  tags = {
+    Name = "public-route-table"
+  }
+}
+
+resource "aws_route_table_association" "public_subnet_assoc_2" {
+  subnet_id      = aws_subnet.public_subnet_1.id
+  route_table_id = aws_route_table.public_rt.id
+}
+resource "aws_route_table_association" "public_subnet_assoc_3" {
+  subnet_id      = aws_subnet.public_subnet_2.id
+  route_table_id = aws_route_table.public_rt.id
+}
+
+
+
 data "aws_ami" "ubuntu" {
-	most_recent = true
-	owners      = ["099720109477"]
+  most_recent = true
+  owners      = ["099720109477"]
 
-	filter {
-		name   = "name"
-		values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
-	}
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+  }
 
-	filter {
-		name   = "virtualization-type"
-		values = ["hvm"]
-	}
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
 }
 
 
 resource "aws_launch_template" "app" {
-  name_prefix   = "app-template"
-  image_id      = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
+  name_prefix            = "app-template"
+  image_id               = data.aws_ami.ubuntu.id
+  instance_type          = "t3.micro"
+  vpc_security_group_ids = [aws_security_group.asg_sg.id]
+  user_data              = base64encode(file("userdata.sh"))
 
-  user_data = base64encode(file("userdata.sh"))
-
-#   iam_instance_profile {
-#     name = aws_iam_role.ec2.name
-#   }
+  #   iam_instance_profile {
+  #     name = aws_iam_role.ec2.name
+  #   }
 }
+
+
+resource "aws_security_group" "asg_sg" {
+  name        = "asg-sg"
+  description = "Security group for EC2 instances in ASG"
+  vpc_id      = aws_vpc.app.id
+
+  ingress {
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  ingress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "asg-sg"
+  }
+}
+
 
 module "asg" {
   source = "../modules/asg"
 
-  name                = "app-asg"
-  subnet_ids          = aws_subnet.app_private[*].id
-  launch_template_id  = aws_launch_template.app.id
-
-  min_size            = 2
-  max_size            = 4
-  desired_capacity    = 2
-
-  # target_group_arns   = [aws_lb_target_group.tg.arn]
+  name               = "app-asg"
+  subnet_ids         = aws_subnet.app_private[*].id
+  launch_template_id = aws_launch_template.app.id
+  target_group_arns  = [aws_lb_target_group.asg_tg.arn]
+  min_size          = 2
+  max_size          = 2
+  desired_capacity  = 2
+  health_check_type = "ELB"
 
   # optional
   azs = var.azs
+}
+
+
+resource "aws_lb_target_group" "asg_tg" {
+  name     = "my-asg-tg"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = aws_vpc.app.id
+
+  health_check {
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 3
+    interval            = 30
+    path                = "/"
+    matcher             = "200"
+  }
+}
+
+resource "aws_security_group" "alb_sg" {
+  name        = "alb-sg"
+  description = "Security group for ALB"
+  vpc_id      = aws_vpc.app.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "alb-sg"
+  }
+}
+
+module "alb" {
+  source = "../modules/lb"
+
+  subnet_ids = [
+    aws_subnet.public_subnet_1.id,
+    aws_subnet.public_subnet_2.id
+  ]
+
+  alb_sg_id        = aws_security_group.alb_sg.id
+  target_group_arn = aws_lb_target_group.asg_tg.arn
+}
+
+output "alb_domain" {
+  value = module.alb.alb_dns_name
 }

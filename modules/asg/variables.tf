@@ -35,7 +35,10 @@ variable "launch_template_id" {
   type = string
 }
 
+variable "health_check_type" {
+  type = string
+}
+
 variable "target_group_arns" {
-  type    = list(string)
-  default = []
+  type = list(string)
 }
