@@ -1,6 +1,7 @@
 resource "aws_s3_bucket" "alb_logs" {
   bucket = "my-alb-logs-${data.aws_caller_identity.current.account_id}"
-
+  # dont do this in producion, only for quick desrtou during testing
+  force_destroy = true
   tags = {
     Name = "alb-logs-bucket"
   }

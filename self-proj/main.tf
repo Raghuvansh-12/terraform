@@ -1,18 +1,18 @@
-resource "aws_vpc" "bastion" {
-  cidr_block           = "192.168.0.0/16"
-  enable_dns_hostnames = true
-}
+# resource "aws_vpc" "bastion" {
+#   cidr_block           = "192.168.0.0/16"
+#   enable_dns_hostnames = true
+# }
 
 resource "aws_vpc" "app" {
   cidr_block           = "172.32.0.0/16"
   enable_dns_hostnames = true
 }
 
-resource "aws_subnet" "bastion_public" {
-  vpc_id            = aws_vpc.bastion.id
-  cidr_block        = "192.168.1.0/24"
-  availability_zone = var.azs[0]
-}
+# resource "aws_subnet" "bastion_public" {
+#   vpc_id            = aws_vpc.bastion.id
+#   cidr_block        = "192.168.1.0/24"
+#   availability_zone = var.azs[0]
+# }
 
 
 # Subnets in different Availability Zones
@@ -142,7 +142,34 @@ resource "aws_security_group" "asg_sg" {
   }
 }
 
+# After your IGW definition, add:
 
+resource "aws_eip" "nat" {
+  domain = "vpc"
+  tags   = { Name = "nat-eip" }
+}
+
+resource "aws_nat_gateway" "nat" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public_subnet_1.id
+  tags          = { Name = "nat-gw" }
+  depends_on    = [aws_internet_gateway.igw]
+}
+
+resource "aws_route_table" "private_rt" {
+  vpc_id = aws_vpc.app.id
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat.id
+  }
+  tags = { Name = "private-route-table" }
+}
+
+resource "aws_route_table_association" "private_rt_assoc" {
+  count          = 2
+  subnet_id      = aws_subnet.app_private[count.index].id
+  route_table_id = aws_route_table.private_rt.id
+}
 module "asg" {
   source = "../modules/asg"
 
@@ -221,4 +248,17 @@ module "alb" {
 
 output "alb_domain" {
   value = module.alb.alb_dns_name
+}
+
+data "aws_route53_zone" "this" {
+  name = var.domain_name
+}
+
+resource "aws_route53_record" "alb_record" {
+  zone_id = data.aws_route53_zone.this.id
+  name    = "app"
+  type    = "CNAME"
+  ttl     = 300
+  records = [module.alb.alb_dns_name]
+  
 }
