@@ -9,3 +9,12 @@ variable "target_group_arn" {
 variable "alb_sg_id" {
   type = string
 }
+
+variable "certificate_arn" {
+  default = ""
+}
+
+variable "enable_https" {
+  type = bool
+  default = false
+}

@@ -177,10 +177,10 @@ module "asg" {
   subnet_ids         = aws_subnet.app_private[*].id
   launch_template_id = aws_launch_template.app.id
   target_group_arns  = [aws_lb_target_group.asg_tg.arn]
-  min_size          = 2
-  max_size          = 2
-  desired_capacity  = 2
-  health_check_type = "ELB"
+  min_size           = 2
+  max_size           = 2
+  desired_capacity   = 2
+  health_check_type  = "ELB"
 
   # optional
   azs = var.azs
@@ -241,6 +241,8 @@ module "alb" {
     aws_subnet.public_subnet_1.id,
     aws_subnet.public_subnet_2.id
   ]
+  enable_https    = true
+  certificate_arn = aws_acm_certificate_validation.app.certificate_arn
 
   alb_sg_id        = aws_security_group.alb_sg.id
   target_group_arn = aws_lb_target_group.asg_tg.arn
@@ -260,5 +262,5 @@ resource "aws_route53_record" "alb_record" {
   type    = "CNAME"
   ttl     = 300
   records = [module.alb.alb_dns_name]
-  
+
 }
