@@ -3,5 +3,5 @@ variable "key_name" {
 }
 
 variable "private_key_path" {
-  default = "${path.module}/id_rsa"
+  type = string
 }
